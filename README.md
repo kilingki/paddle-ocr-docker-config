@@ -1,45 +1,45 @@
 # paddle-ocr-docker-config
 
-PaddleOCR-VL-1.6 BF16를 **단일 vLLM engine**으로 실행하는 Docker HTTP runtime입니다.
-한 요청은 이미지 한 장에 명시한 task 하나를 실행합니다. tile/crop·자료 유형 판단·추가 판독·결과 보정은 호출 서비스가 담당합니다.
+A Docker HTTP runtime that serves PaddleOCR-VL-1.6 BF16 using a **single vLLM engine**.
+Each request runs one explicitly selected task on one image. The calling service handles tiling, cropping, content-type classification, additional recognition passes, and output correction.
 
-## 준비와 실행
+## Setup and startup
 
-필요 환경: Linux/WSL2, Docker Compose GPU 지원, NVIDIA GPU, 아래 revision의 로컬 모델.
-RTX 3090 24GB에서 검증했습니다. 모델은 자동 다운로드하지 않습니다.
+Requirements: Linux/WSL2, Docker Compose with GPU support, an NVIDIA GPU, and a local copy of the model revision below.
+Validated on an RTX 3090 with 24 GB VRAM. The runtime does not download models automatically.
 
-- 모델: PaddlePaddle/PaddleOCR-VL-1.6
-- revision: c5630abae1d940eafe0697512a0325494b02ab42
-- 기본 모델 마운트: MODEL_HOST_DIR=../models/ocr/tf → /models
-- 모델 경로: /models/PaddleOCR-VL-1.6
-- configs/model_manifest.json의 17개 파일 크기/SHA256을 load 때 검증
-- 가중치 BF16 / KV auto, 양자화 없음 / TP=1 / DP=1
+- Model: PaddlePaddle/PaddleOCR-VL-1.6
+- Revision: c5630abae1d940eafe0697512a0325494b02ab42
+- Default model mount: MODEL_HOST_DIR=../models/ocr/tf → /models
+- Model path: /models/PaddleOCR-VL-1.6
+- All 17 file sizes and SHA256 hashes in configs/model_manifest.json are verified when loading the model.
+- BF16 weights / KV cache dtype auto, no quantization / TP=1 / DP=1
 
-최초 설정 때 .env.example을 참고해 .env를 작성합니다. 기존 .env는 보존합니다.
+For initial setup, create .env using .env.example as a reference. Preserve any existing .env file.
 
 ```bash
 docker compose build
 docker compose up
 ```
 
-기본 base는 Dockerfile의 vLLM0.31.0 registry digest에 고정되어 있습니다. controller 의존성은 requirements.txt의 정확한 버전을 사용하며 vLLM/Torch 버전을 덮어쓰지 않습니다. 실제 검증 base/image·설정·결과는 [benchmarks/README.md](benchmarks/README.md)에 기록합니다.
+The default base image is pinned to the vLLM 0.31.0 registry digest in Dockerfile. Controller dependencies use the exact versions in requirements.txt without overriding the base image's vLLM/Torch versions. The base images, runtime images, settings, and results used for validation are recorded in [benchmarks/README.md](benchmarks/README.md).
 
-구조는 qwen-asr/qwen-fa의 API 디렉터리·모델 마운트와 vllm의 빌드·profile 구성을 따릅니다.
+The project follows the API directory and model mount conventions of qwen-asr/qwen-fa, along with the build and profile structure of vllm.
 
-| 위치 | 역할 |
+| Path | Purpose |
 |---|---|
-| ocr-api/app/ | controller·모델 worker·호스트 prepare helper |
-| Dockerfile | vllm과 같은 루트 build context, 컨테이너 작업 경로 /app |
-| configs/common.env | 공통 endpoint·입력·출력 한도 |
-| configs/models/paddleocr-vl-1.6.env | 모델 경로·revision·processor/context 설정 |
-| .env | 호스트 포트·모델 상위 디렉터리·profile 선택·운영 override |
-| prepare-inferswap | 실행 중 컨테이너 보존, 정지 컨테이너 기동, 성공 시 exit0 |
+| ocr-api/app/ | Controller, model worker, and host-side prepare helper |
+| Dockerfile | Root build context, as in vllm; container working directory /app |
+| configs/common.env | Shared endpoint, input, and output limits |
+| configs/models/paddleocr-vl-1.6.env | Model path, revision, processor, and context settings |
+| .env | Host port, model parent directory, profile selection, and operational overrides |
+| prepare-inferswap | Preserve running containers, start stopped containers, and exit with code 0 on success |
 
-controller는 모든 호스트 인터페이스의 8020 포트(컨테이너 내부 8000)에서 시작하고 **모델은 unloaded**입니다. /health·/control/status·일반 /ocr 요청은 모델을 자동 load하지 않습니다. 내부 vLLM 포트는 호스트에 공개하지 않습니다.
+The controller starts on host port 8020 across all host interfaces (container port 8000), with the **model unloaded**. /health, /control/status, and ordinary /ocr requests do not load the model automatically. The internal vLLM port is not exposed to the host.
 
-## 모델 제어
+## Model control
 
-일반 운영에서는 InferSwap이 prepare/load/unload와 GPU 전환을 담당합니다. 다음 직접 호출은 독립 운영·검증용입니다.
+During normal operation, InferSwap handles preparation, model loading/unloading, and GPU switching. The following direct calls are for standalone operation and validation.
 
 ```bash
 curl --fail-with-body http://127.0.0.1:8020/control/status
@@ -47,27 +47,27 @@ curl --fail-with-body -X POST http://127.0.0.1:8020/control/load -H 'Content-Typ
 curl --fail-with-body -X POST http://127.0.0.1:8020/control/unload -H 'Content-Type: application/json' -d '{}'
 ```
 
-정상 status/control 성공 응답은 정확히 네 필드입니다.
+Successful status/control responses contain exactly four fields:
 
 ```json
 {"state":"unloaded","residency":"not_resident","active_requests":0,"last_error":null}
 ```
 
-load/unload는 완료까지 기다리는 동기 API입니다. 중복 같은 작업은 같은 결과를 공유하고 반대 작업은409 LIFECYCLE_CONFLICT입니다. 활성 추론·취소 정리가 있으면 unload는409 BUSY입니다. control HTTP 연결 종료는 진행 중 load/unload를 취소하지 않습니다. 실제 worker 종료를 확인하지 못하면 failed/unknown으로 남겨 GPU가 해제됐다고 보고하지 않습니다.
+Load/unload APIs are synchronous and wait for completion. Concurrent requests for the same operation share its result; requests for the opposite operation return 409 LIFECYCLE_CONFLICT. Unload returns 409 BUSY while inference or cancellation cleanup is active. Closing a control HTTP connection does not cancel an ongoing load/unload operation. If worker termination cannot be confirmed, the runtime remains failed/unknown and does not report the GPU as released.
 
-`./prepare-inferswap`은 build된 컨테이너의 control endpoint만 준비합니다. 정상 기존 ready/active/failed 상태를 보존하고 build/download/model load를 하지 않습니다. 기존 endpoint 확인 실패 시 restart/recreate하지 않고 실패합니다.
+`./prepare-inferswap` only prepares the control endpoint of an already built container. It preserves existing ready/active/failed states during normal operation and does not build images, download models, or load the model. If an existing endpoint fails validation, preparation fails without restarting or recreating the container.
 
-## 단일 task 추론
+## Single-task inference
 
 POST /ocr, multipart/form-data:
-file은 PNG/JPEG 한 장, payload는 아래 JSON 문자열입니다. task는 필수이며 max_new_tokens만 선택할 수 있습니다.
+file is one PNG/JPEG image, and payload is a JSON string as shown below. task is required; max_new_tokens is the only optional parameter.
 
-| task | 실행 | native 출력 |
+| Task | Operation | Native output |
 |---|---|---|
-| spotting | 문자 위치와 최초 판독 | 위치 token을 포함한 문자열, 검증 가능한 polygon/최초 text |
-| ocr | 전달된 이미지·crop 문자 판독 | 모델 원문 |
-| formula | 수식 판독 | 모델 원문 LaTeX |
-| table | 표 구조·내용 판독 | 모델 원문 OTSL |
+| spotting | Locate text and perform initial recognition | A string containing location tokens, with polygons and initial text that can be validated |
+| ocr | Recognize text in the supplied image or crop | Raw model output |
+| formula | Recognize mathematical expressions | Raw model output in LaTeX |
+| table | Recognize table structure and content | Raw model output in OTSL |
 
 ```bash
 curl --fail-with-body http://127.0.0.1:8020/ocr \
@@ -75,28 +75,28 @@ curl --fail-with-body http://127.0.0.1:8020/ocr \
   -F 'payload={"task":"spotting","max_new_tokens":4096}'
 ```
 
-응답에는 request_id, model/revision, task, 입력 hash/크기, native_text/text, technical_status, finish_reason/stop_reason, usage, execution이 있습니다. spotting에는 parse_status, regions, parse_errors가 추가됩니다. polygon_input_px는 **업로드 이미지** 좌표입니다.
+Responses include request_id, model/revision, task, input hash/dimensions, native_text/text, technical_status, finish_reason/stop_reason, usage, and execution. Spotting responses also include parse_status, regions, and parse_errors. polygon_input_px uses coordinates in the **uploaded image**.
 
-native_text는 vLLM decode 문자열을 보존합니다. EOS/종료 token은 backend가 반환에서 제외할 수 있습니다. technical_status=ok는 생성/구조 처리의 기술적 완료이며 문자 정확도나 품질 채택이 아닙니다. 길이 상한·비어 있는 출력·Spotting parse 실패는200 incomplete로 반환합니다. 실패한 생성은 자동 재시도하지 않습니다. timeout/stream 실패에 이미 받은 native 원문이 있으면 오류의 partial_result에 보존합니다.
+native_text preserves the string decoded by vLLM. The backend may omit EOS/end tokens from the returned output. technical_status=ok indicates technical completion of generation and structural processing; it does not establish recognition accuracy or quality acceptance. Output length limits, empty output, and spotting parse failures return HTTP 200 with incomplete status. Failed generations are not retried automatically. If native output has already been received when a timeout or stream failure occurs, it is preserved in the error's partial_result.
 
-runtime은 crop·tile·자동 유형 분류·Spotting 뒤 추가 OCR·OTSL 셀/HTML 변환·LaTeX/문자 교정을 수행하지 않습니다. 외부에서 Spotting 1회 뒤 필요한 판독 N회를 조합합니다. 이미 crop이 준비되어 있으면 spotting 없이 해당 task를 직접 요청합니다.
+The runtime does not crop or tile images, classify content types automatically, run additional OCR after spotting, convert OTSL into cells/HTML, or correct LaTeX/text. The caller can compose one spotting request followed by N recognition requests as needed. If crops are already prepared, request the relevant task directly without spotting.
 
-## 제한과 취소
+## Limits and cancellation
 
-- body32MiB, 단일 PNG/JPEG, 최대16,777,216 pixels·한 변8192px·종횡비200.
-- task: spotting/ocr/formula/table. 자유 prompt·URL·mode·crop_policy·복수 이미지·사용자 processor kwargs는 받지 않습니다.
-- max_new_tokens: 엄격한 정수1..4096. 기본4096.
-- 초기 운영 동시성1. MAX_ACTIVE_REQUESTS는1/2/4만 허용하며 engine max_num_seqs도 같은 값으로 설정합니다.
-- 슬롯 초과429, 미로드503, 입력400, body413, 형식415, 추론 실패500, 내부 deadline504, 업로드 deadline408.
-- controller가 클라이언트 disconnect를 감지하거나 요청 deadline에 도달하면 해당 private vLLM 요청을 취소합니다. 실제 종료 확인 전 active를 유지합니다.
-- private HTTP 취소의 개별 종료 ACK가 없으면 새 접수를 잠시 막고 나머지 정상 요청이 끝난 뒤 engine 전체 idle을 확인합니다. 취소가 다른 요청을 임의로 중단하거나 모델을 unload하지 않습니다.
-- GPU engine fatal/hang의 복구는 정상 요청 취소와 구분합니다. 종료 불명이면 fail 상태와 실행 책임을 유지합니다.
+- Body limit: 32 MiB; one PNG/JPEG; at most 16,777,216 pixels, 8192 px per edge, and an aspect ratio of 200.
+- Tasks: spotting/ocr/formula/table. Arbitrary prompts, URLs, mode, crop_policy, multiple images, and user-supplied processor kwargs are not accepted.
+- max_new_tokens: a strict integer in 1..4096. Default: 4096.
+- Default operating concurrency: 1. MAX_ACTIVE_REQUESTS accepts only 1/2/4, and the engine's max_num_seqs is set to the same value.
+- HTTP errors: 429 for exhausted request slots, 503 for an unloaded model, 400 for invalid input, 413 for an oversized body, 415 for an unsupported format, 500 for inference failure, 504 for the internal request deadline, and 408 for the upload deadline.
+- When the controller detects a client disconnect or reaches the request deadline, it cancels the corresponding private vLLM request. The request remains active until its termination is confirmed.
+- If private HTTP cancellation provides no per-request termination acknowledgment, the runtime temporarily blocks new requests, waits for other normal requests to finish, and confirms that the entire engine is idle. Cancellation does not arbitrarily terminate other requests or unload the model.
+- Recovery from a fatal or hung GPU engine is handled separately from normal request cancellation. If termination is uncertain, the runtime retains its failure state and responsibility for the running processes.
 
-MAX_ACTIVE_REQUESTS·pixel/token·context·KV 예약·eager 설정을 바꾸면 profile을 다시 검증합니다. [동시성 실측과 제한](benchmarks/README.md)을 확인하세요.
+Revalidate the profile after changing MAX_ACTIVE_REQUESTS, pixel/token limits, context size, KV cache reservation, or eager execution settings. See [measured concurrency and limits](benchmarks/README.md).
 
-## InferSwap 연결
+## InferSwap integration
 
-등록 후 호출 body는 동일합니다.
+After registration, the request body is unchanged:
 
 ```bash
 curl --fail-with-body 'http://127.0.0.1:8095/infer?model=paddle-ocr' \
@@ -104,15 +104,15 @@ curl --fail-with-body 'http://127.0.0.1:8095/infer?model=paddle-ocr' \
   -F 'payload={"task":"formula"}'
 ```
 
-logical ID는 paddle-ocr, inferencePath는 /ocr, baseURL은 같은 WSL host 기준 http://127.0.0.1:8020, prepare.argv는 이 저장소 prepare-inferswap의 절대 경로입니다. task마다 모델을 등록하지 않습니다.
+Use paddle-ocr as the logical ID, /ocr as inferencePath, http://127.0.0.1:8020 as baseURL on the same WSL host, and the absolute path to this repository's prepare-inferswap script in prepare.argv. Do not register a separate model for each task.
 
-이 호스트의 InferSwap/config.vllm.yaml에 paddle-ocr를 등록하고 실제 통합 검증을 마쳤습니다. 정지 컨테이너 prepare → load → 네 task 추론 → 외부 연결 취소 → Qwen 요청에 따른 OCR unload를 모두 8095 경유로 확인했습니다. 실행 중이던 기존 세 모델의 설정은 보존했습니다. 저장소 파일이 다른 호스트의 InferSwap 설정을 자동 변경하지는 않습니다.
+paddle-ocr was registered in InferSwap/config.vllm.yaml on the validation host, and integration validation completed. Preparation of a stopped container → model load → inference for all four tasks → external connection cancellation → OCR unload triggered by a Qwen request were all verified through port 8095. The existing settings for the three other models were preserved. Repository files do not automatically modify InferSwap settings on other hosts.
 
-[접속·자원 profile](tests/outputs/inferswap_connection.json), [등록 fragment](benchmarks/inferswap_model.json), [통합 결과](tests/outputs/20261028_inferswap_integration_03/integration_summary.json)를 참고하세요. HTTP 종료 뒤 backend 정리가 늦어지는 경우를 처리하도록 InferSwap의 backend 상태 재확인을 수정했고, 전체 Go 테스트와 router race 검증을 통과했습니다.
+See the [connection and resource profile](tests/outputs/inferswap_connection.json), [registration fragment](benchmarks/inferswap_model.json), and [integration results](tests/outputs/20261028_inferswap_integration_03/integration_summary.json). InferSwap's backend status recheck was updated to handle delayed backend cleanup after an HTTP connection closes; the full Go test suite and router race checks passed.
 
-## 검증
+## Validation
 
-GPU 없는 계약·경합·입력·취소·실제 자식 process tree 종료·prepare 보존 테스트:
+GPU-free tests cover contracts, races, input validation, cancellation, termination of real child process trees, and preservation of existing state during preparation:
 
 ```bash
 docker run --rm --network none \
@@ -121,15 +121,14 @@ docker run --rm --network none \
   -m pytest -q -p no:cacheprovider
 ```
 
-pytest는 개발용입니다. 사용 base에 없으면 별도 개발 환경에 설치합니다.
+pytest is a development dependency. If it is absent from the selected base image, install it in a separate development environment.
 
-독립 검증 실행기는 tests/check_api.py, benchmark_concurrency.py, check_gpu_lifecycle.py에 있습니다. GPU lifecycle 실행기는 현재 local fixture manifest와 기존 runtime 상태를 검사하고, Qwen 전환 후 원래 residency 복원을 시도합니다. 새 run 출력 경로가 필요하며 실패를 덮어쓰거나 자동 재시도하지 않습니다. fixture는 명시적인 이미지 경로·task·SHA256 JSON으로 교체할 수 있습니다.
+Standalone validation runners are available in tests/check_api.py, tests/benchmark_concurrency.py, and tests/check_gpu_lifecycle.py. The GPU lifecycle runner checks the current local fixture manifest and existing runtime state, then attempts to restore the original residency after switching to Qwen. Each run requires a new output path; failed results are neither overwritten nor retried automatically. Fixtures can be replaced with a JSON manifest containing explicit image paths, tasks, and SHA256 hashes.
 
-
-실제 InferSwap 통합 실행기:
+The InferSwap integration runner:
 
 ```bash
 python3 tests/check_inferswap.py --out tests/outputs/<new-run>
 ```
 
-InferSwap의 paddle-ocr/qwen-vlm 등록과 유휴 상태, 네 고정 fixture가 필요합니다. 이 실행기는 OCR 컨테이너를 정지한 뒤 InferSwap의 prepare 기동을 확인하고, 모든 추론과 모델 전환을 8095로 요청합니다. 직접 /control/load·unload를 호출하지 않습니다. 실패 결과는 새 run에 보존하고 비0으로 종료합니다.
+This runner requires paddle-ocr/qwen-vlm registrations in InferSwap, an idle runtime state, and four fixed fixtures. It stops the OCR container, verifies that InferSwap starts it through preparation, and sends all inference and model-switching requests through port 8095. It does not call /control/load or /control/unload directly. Failed results are preserved in a new run directory, and the runner exits with a nonzero status.
