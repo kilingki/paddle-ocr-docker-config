@@ -1,0 +1,22 @@
+[
+  {
+    "task": "spotting",
+    "path": "ExtracTube/tests/T5/runs/20261028T030129Z_7948a1_e15_task_modes/assets/8_ocr_automatic_crop.png",
+    "sha256": "2369231377900de2b96fbcb3e1c88567e6d1cbce7b433aeb36a0d6330cef48f8"
+  },
+  {
+    "task": "ocr",
+    "path": "ExtracTube/tests/T5/runs/20261028T030129Z_7948a1_e15_task_modes/assets/8_ocr_automatic_crop.png",
+    "sha256": "2369231377900de2b96fbcb3e1c88567e6d1cbce7b433aeb36a0d6330cef48f8"
+  },
+  {
+    "task": "formula",
+    "path": "ExtracTube/tests/T5/runs/20261028T030129Z_7948a1_e15_task_modes/assets/3_formula_automatic_crop.png",
+    "sha256": "9ea1b036524822239f149f636172200ab766861221dfed80efc3db356ce17ef3"
+  },
+  {
+    "task": "table",
+    "path": "ExtracTube/tests/T5/runs/20261028T030129Z_7948a1_e15_task_modes/assets/7_table_automatic_crop.png",
+    "sha256": "c00f4f9218b918823e9367d81809c3adcc3af7479d4ecd799f8009cbe1fa9d0e"
+  }
+]

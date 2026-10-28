@@ -1,0 +1,51 @@
+{
+  "models": {
+    "paddle-ocr": {
+      "name": "PaddleOCR-VL-1.6 BF16",
+      "baseURL": "http://127.0.0.1:8020",
+      "inferencePath": "/ocr",
+      "maxBodyBytes": 33554432,
+      "prepare": {
+        "argv": [
+          "/home/kjh/workspace/paddle-ocr-docker-config/prepare-inferswap"
+        ]
+      },
+      "timeouts": {
+        "healthCheckTimeout": 180,
+        "unloadTimeout": 45,
+        "prepareTimeout": 60
+      },
+      "resourceProfile": {
+        "profileId": "rtx3090-paddleocr-vl16-bf16-vllm0310-c1-20261028",
+        "loadPeakBytes": 10278141952,
+        "inferencePeakBytes": 10278141952,
+        "unloadedResidualBytes": 68157440,
+        "maxConcurrency": 1,
+        "limits": {
+          "modelRevision": "c5630abae1d940eafe0697512a0325494b02ab42",
+          "dtype": "bfloat16",
+          "kvCacheDtype": "auto",
+          "maxInputImages": 1,
+          "maxImagePixels": 16777216,
+          "maxImageEdge": 8192,
+          "maxOutputTokens": 4096,
+          "maxModelLen": 8192,
+          "maxNumBatchedTokens": 8192,
+          "spottingMaxPixels": 1605632,
+          "readingMaxPixels": 1003520,
+          "gpuMemoryUtilization": 0.35,
+          "enforceEager": true,
+          "requestTimeoutSeconds": 120,
+          "gpuUUID": "GPU-c47f1d0d-ea5d-4e6c-da7c-c9ad18b1b978",
+          "measurements": "tests/outputs/20261028_runtime_validation_03",
+          "peakMarginBytes": 1073741824,
+          "residualMarginBytes": 67108864,
+          "fixtureScope": "4 historical development crops + 8192x2048 synthetic dense table; C1 selected; 3 selected lifecycle rounds",
+          "imageID": "sha256:15eea8969f605ec39e40c3c57c1886a73b647186fade9c37211f1adad7ab3208",
+          "vllmVersion": "0.31.0",
+          "sourceManifest": "tests/outputs/20261028_inferswap_integration_02/release_manifest.json"
+        }
+      }
+    }
+  }
+}

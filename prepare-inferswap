@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Make the OCR control endpoint reachable.
+# New/stopped containers start unloaded; running models and in-flight work are preserved.
+set -euo pipefail
+
+root="$(cd "$(dirname "$0")" && pwd)"
+cd "${root}"
+export PYTHONDONTWRITEBYTECODE=1
+export PYTHONPATH="${root}/ocr-api${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m app.prepare

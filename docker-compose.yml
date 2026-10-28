@@ -1,0 +1,48 @@
+services:
+  paddle-ocr-runtime:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VLLM_BASE_IMAGE: ${VLLM_BASE_IMAGE:-vllm/vllm-openai:v0.31.0@sha256:c1c9f6fd5c109ba7f0546a59f5b2f15fb87f64c77782e90a27b648b42a8e67c3}
+    image: paddle-ocr-runtime:local
+    init: true
+    shm_size: 8gb
+    restart: unless-stopped
+    stop_grace_period: 45s
+    ports:
+      - "${PUBLIC_PORT:-8020}:8000"
+    volumes:
+      - ${MODEL_HOST_DIR:-../models/ocr/tf}:/models:ro
+      - paddle-ocr-cache:/cache
+    env_file:
+      - configs/common.env
+      - configs/models/${MODEL_PROFILE:-paddleocr-vl-1.6}.env
+    environment:
+      MODEL_PROFILE: ${MODEL_PROFILE:-paddleocr-vl-1.6}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      HF_HOME: /cache/huggingface
+      VLLM_CACHE_ROOT: /cache/vllm
+      TORCH_HOME: /cache/torch
+      XDG_CACHE_HOME: /cache/xdg
+      MAX_ACTIVE_REQUESTS: ${MAX_ACTIVE_REQUESTS:-1}
+      GPU_MEMORY_UTILIZATION: ${GPU_MEMORY_UTILIZATION:-0.35}
+      ENFORCE_EAGER: ${ENFORCE_EAGER:-true}
+      LOAD_TIMEOUT: ${LOAD_TIMEOUT:-120}
+      REQUEST_TIMEOUT: ${REQUEST_TIMEOUT:-120}
+      CANCEL_TIMEOUT: ${CANCEL_TIMEOUT:-30}
+      UNLOAD_TIMEOUT: ${UNLOAD_TIMEOUT:-30}
+    gpus: all
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+volumes:
+  paddle-ocr-cache:

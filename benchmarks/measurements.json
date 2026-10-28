@@ -1,0 +1,118 @@
+{
+  "hardware": "GPU-c47f1d0d-ea5d-4e6c-da7c-c9ad18b1b978, NVIDIA GeForce RTX 3090, 610.88, 24576 MiB",
+  "levels": [
+    {
+      "concurrency": 1,
+      "windows_seconds": [
+        5.966141570999753,
+        6.003545226005372
+      ],
+      "mean_requests_per_second": 0.668361524798899,
+      "mean_completion_tokens_per_second": 65.33233904909237,
+      "host_peak_mib": 10038,
+      "observed_max_active": 1,
+      "latency_p50_seconds": 1.1245392894925317,
+      "latency_p95_nearest_rank_seconds": 3.3364639289939078,
+      "latency_sample_count": 8
+    },
+    {
+      "concurrency": 2,
+      "windows_seconds": [
+        4.658619129986619,
+        4.512820314994315
+      ],
+      "mean_requests_per_second": 0.8724936023609275,
+      "mean_completion_tokens_per_second": 85.28624963078067,
+      "host_peak_mib": 10034,
+      "observed_max_active": 2,
+      "latency_p50_seconds": 1.2772934180029551,
+      "latency_p95_nearest_rank_seconds": 3.3760020369954873,
+      "latency_sample_count": 8
+    },
+    {
+      "concurrency": 4,
+      "windows_seconds": [
+        3.284537530998932,
+        3.324717205003253
+      ],
+      "mean_requests_per_second": 1.2104686525278374,
+      "mean_completion_tokens_per_second": 115.90237347954043,
+      "host_peak_mib": 9979,
+      "observed_max_active": 4,
+      "latency_p50_seconds": 1.2474542440031655,
+      "latency_p95_nearest_rank_seconds": 3.304350878999685,
+      "latency_sample_count": 8
+    }
+  ],
+  "all_targeted_host_peak_mib": 10229,
+  "conservative_baseline_mib": 1451,
+  "observed_positive_residual_mib": 1,
+  "profile_peak_cap_bytes": 10278141952,
+  "profile_residual_cap_bytes": 68157440,
+  "status_latency_max_seconds": 1.0769121819903376,
+  "selected_rounds": [
+    {
+      "label": "selected_round_0",
+      "load_seconds": 45.252970133005874,
+      "unload_seconds": 0.5097672429983504,
+      "baseline_mib": 1460,
+      "after_mib": 1461,
+      "terminal": {
+        "state": "unloaded",
+        "residency": "not_resident",
+        "active_requests": 0,
+        "last_error": null
+      },
+      "workers_after": []
+    },
+    {
+      "label": "selected_round_1",
+      "load_seconds": 45.04828968500078,
+      "unload_seconds": 0.6099660120089538,
+      "baseline_mib": 1462,
+      "after_mib": 1451,
+      "terminal": {
+        "state": "unloaded",
+        "residency": "not_resident",
+        "active_requests": 0,
+        "last_error": null
+      },
+      "workers_after": []
+    },
+    {
+      "label": "selected_round_2",
+      "load_seconds": 46.51654488699569,
+      "unload_seconds": 0.6070543850073591,
+      "baseline_mib": 1451,
+      "after_mib": 1435,
+      "terminal": {
+        "state": "unloaded",
+        "residency": "not_resident",
+        "active_requests": 0,
+        "last_error": null
+      },
+      "workers_after": []
+    }
+  ],
+  "max_image_completion_tokens": 4096,
+  "max_image_seconds": 62.44525367899041,
+  "partial_native_characters": 1754,
+  "partial_deadline_seconds": 15.62782859300205,
+  "operating_concurrency": 1,
+  "final_image_id": "sha256:614feb4923d2ecc51da5543762a79b525cf6af87cdcca06cffbb8fa22e4d55b2",
+  "cpu_tests": 36,
+  "cpu_junit": "tests/outputs/20261028_cpu_release.xml",
+  "gpu_tested_images": [
+    "sha256:5efbadaa1233b955f17ebc94f96aff1370e0753d23ca677ebb2c089f4535d597",
+    "sha256:0c416078fd5d829e4897c2ad92d3da7beffb6e4a2cd80d42d4d38abc851cc82e",
+    "sha256:1877d11246f197628f1ca04336d192db6c1ca39a3cd278cae4b121880e18fa6f"
+  ],
+  "post_gpu_source_changes": {
+    "files": [
+      "ocr-api/app/lifecycle.py",
+      "ocr-api/app/main.py"
+    ],
+    "scope": "fatal partial-output forwarding/buffer cleanup + oversized control body 400; CPU-tested and final controller HTTP checked; normal inference/engine/timeout path unchanged"
+  },
+  "total_runtime_sequence_reservations": 53
+}
